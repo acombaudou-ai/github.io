@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>:root{color-scheme:light}html{padding-block:env(safe-area-inset-top,0) env(safe-area-inset-bottom,0)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Stats au Comptoir</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap">
 <style>
+html{color-scheme:light dark}body{margin:0}[hidden]{display:none!important}
 :root{--bg:#EEF2EF;--surface:#FFFFFF;--ink:#12201C;--muted:#55645F;--line:#CBD5D0;--accent:#0B7A62;--on-accent:#FFFFFF;--soft:#E1EDE8;--gold:#E0A800;--warn:#9A6200;--good:#1C7C3E;--bad:#B93526;--shadow:0 1px 0 rgba(18,32,28,.06),0 8px 24px -12px rgba(18,32,28,.18);--fd:"Bricolage Grotesque",Georgia,serif;--fb:"Figtree",system-ui,sans-serif;--fm:"JetBrains Mono",ui-monospace,Menlo,monospace}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1614;--surface:#16221F;--ink:#E7F0EC;--muted:#9BB0A8;--line:#2C3D38;--accent:#3FD1AE;--on-accent:#05211A;--soft:#1E2F2A;--gold:#F5C518;--warn:#F5C518;--good:#5FD38A;--bad:#FF8A7A;--shadow:0 8px 24px -12px rgba(0,0,0,.6);color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0E1614;--surface:#16221F;--ink:#E7F0EC;--muted:#9BB0A8;--line:#2C3D38;--accent:#3FD1AE;--on-accent:#05211A;--soft:#1E2F2A;--gold:#F5C518;--warn:#F5C518;--good:#5FD38A;--bad:#FF8A7A;--shadow:0 8px 24px -12px rgba(0,0,0,.6);color-scheme:dark}
@@ -80,6 +79,9 @@ h2.sec{font:700 14px var(--fb);letter-spacing:.09em;text-transform:uppercase;col
 .kpis{display:flex;flex-wrap:wrap;gap:10px}.kpi{background:var(--soft);border-radius:10px;padding:10px 16px;display:flex;flex-direction:column;min-width:84px}.kpi .mono{font-size:22px;font-weight:700}.kpi small{color:var(--muted)}
 .wk{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(70px,1fr) 52px;gap:12px;align-items:center;padding:6px 0;font-size:15px}.wbar{height:10px;background:var(--soft);border-radius:99px;overflow:hidden}.wbar i{display:block;height:100%;background:var(--warn)}
 .tst{color:var(--gold);letter-spacing:1px;font-size:13px;white-space:nowrap}.ticket table td:first-child{text-align:left;white-space:nowrap}
+
+.ansrow+.kpis{margin-top:16px}
+.fl{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}.inp.wide{max-width:none;width:100%}.fh{margin:0}select.inp{min-width:140px;font-size:16px}
 
 </style>
 </head>
@@ -222,6 +224,14 @@ const MISSIONS=[
 function bossBuild(){const pool=MISSIONS.map(m=>m.build());const g=i=>pick(pool[i]);return [g(0),g(1),g(2),g(3),g(4),g(5),g(6),pick(pool[5])]}
 
 
+// ===== CONFIGURATION (à modifier) =====
+// Colle ici l'adresse de ton application web Google Apps Script (voir le guide). Laisse "" pour désactiver l'envoi des scores.
+const ENDPOINT="https://script.google.com/macros/s/AKfycby3F8PtypAmtlR8OTYyM72tx-K_3Aa21N6BGEoi2g7Vnum6G_m91b0mCJxUjt7MguLIvQ/exec";
+// Code de classe facultatif : doit être identique dans le script Google (laisser "" si inutile).
+const CLASS_CODE="B1";
+// Groupes proposés aux étudiants, par exemple ["B1-A","B1-B"]. Laisser [] pour un champ libre.
+const GROUPS=[];
+let UID="";try{UID=localStorage.getItem("stats-au-comptoir-id")||"";if(!UID){UID="s"+Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem("stats-au-comptoir-id",UID)}}catch(e){UID="s"+Math.random().toString(36).slice(2,10)}
 // ===== Interface =====
 const KEY="stats-au-comptoir-v1";
 let prog={best:{}};
@@ -229,9 +239,9 @@ try{prog=JSON.parse(localStorage.getItem(KEY))||{best:{}};if(!prog.best)prog.bes
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(prog))}catch(e){}};
 const $app=document.getElementById("app");
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let DB=null,UID=null,TEACHER=false,DL=null,unsub=null;
-const NKEY="stats-au-comptoir-name";let NAME="",NOSYNC=false;
-try{NAME=localStorage.getItem(NKEY)||"";NOSYNC=localStorage.getItem(NKEY+"-off")==="1"}catch(e){}
+const DB=ENDPOINT?{}:null,TEACHER=false;let DL=null,unsub=null;
+const NKEY="stats-au-comptoir-name";let NAME="",GRP="",NOSYNC=false;
+try{NAME=localStorage.getItem(NKEY)||"";GRP=localStorage.getItem(NKEY+"-grp")||"";NOSYNC=localStorage.getItem(NKEY+"-off")==="1"}catch(e){}
 
 const S={rows:null,sync:"",view:"home",mid:null,qs:[],qi:0,si:0,att:0,hint:false,wrong:[],msg:"",done:false,steps:[],log:[],pts:0,max:0,reveal:false,confirmReset:false,help:false};
 const BOSS={id:"boss",n:"★",title:"Le Rapport au directeur",short:"8 questions mêlant toutes les missions",build:bossBuild,intro:`<p>Dernière épreuve : une question de chaque mission, tirée au hasard. Tu as tout ce qu'il faut : l'aide-mémoire reste accessible en haut de l'écran.</p><p class="ex">Objectif : 3 étoiles pour devenir Directeur·rice des données.</p>`};
@@ -249,9 +259,9 @@ const modOf=id=>id==="boss"?BOSS:MISSIONS.find(m=>m.id===id);
 function header(){const t=total();return`<header class="top"><button class="brand" data-act="home" aria-label="Retour à l'accueil"><span class="logo" aria-hidden="true">€</span><span>Stats au Comptoir</span></button><div class="top-r">${TEACHER?`<button class="btn sm" data-act="teacher">Suivi de la classe</button>`:""}<span class="pill mono" title="Points de chiffre d'affaires">${t.s} pts</span><button class="btn ghost sm" data-act="help">Aide-mémoire</button></div></header>`}
 function trackCard(){
  if(!DB)return`<p class="note trk">Tes scores sont gardés sur cet appareil.</p>`;
- if(!NAME&&!NOSYNC)return`<form class="trk nameform" data-form="name" autocomplete="off"><label for="nm"><b>Avant de commencer</b><br><span class="note">Indique ton prénom et ton nom. Ton enseignant verra ton nom et tes scores (personne d'autre).</span></label><div class="ansrow"><input id="nm" class="inp" maxlength="40" placeholder="Prénom Nom" aria-label="Prénom et nom"/><button class="btn" type="submit">Enregistrer</button></div><button type="button" class="link" data-act="nosync">Jouer sans transmettre mes scores</button></form>`;
+ if(!NAME&&!NOSYNC)return`<form class="trk nameform" data-form="name" autocomplete="off"><p class="fh"><b>Avant de commencer</b><br><span class="note">Indique ton prénom, ton nom et ton groupe. Ton enseignant verra ces informations et tes scores (personne d'autre).</span></p><label class="fl" for="nm">Prénom et nom</label><input id="nm" class="inp wide" maxlength="40" placeholder="Prénom Nom" value="${esc(NAME)}"/><label class="fl" for="grp">Groupe</label>${GROUPS.length?`<select id="grp" class="inp wide">${GROUPS.map(g=>`<option ${g===GRP?"selected":""}>${esc(g)}</option>`).join("")}</select>`:`<input id="grp" class="inp wide" maxlength="20" placeholder="Ex. B1-A" value="${esc(GRP)}"/>`}<div class="ansrow"><button class="btn" type="submit">Enregistrer</button><button type="button" class="link" data-act="nosync">Jouer sans transmettre mes scores</button></div></form>`;
  if(NOSYNC)return`<p class="note trk">Tes scores ne sont pas transmis à ton enseignant. <button class="link" data-act="enable">Les transmettre</button></p>`;
- return`<p class="note trk">Scores transmis à ton enseignant sous le nom <b>${esc(NAME)}</b>${S.sync==="ok"?" ✓":S.sync==="err"?" (envoi impossible pour l'instant)":""} · <button class="link" data-act="rename">Changer de nom</button></p>`}
+ return`<p class="note trk">Scores transmis à ton enseignant sous le nom <b>${esc(NAME)}</b>${GRP?" ("+esc(GRP)+")":""}${S.sync==="ok"?" (envoi effectué)":S.sync==="err"?" (envoi impossible pour l'instant)":""} · <button class="link" data-act="rename">Changer de nom</button></p>`}
 function home(){const lv=level();const t=total();
  const cards=MISSIONS.map(m=>{const b=bestOf(m.id);return`<button class="mcard" data-act="intro" data-id="${m.id}"><span class="mnum mono">${m.n}</span><span class="mtxt"><b>${m.title}</b><small>${m.short}</small></span><span class="mst ${b.stars?"on":""}" aria-label="${b.stars} étoiles sur 3">${starStr(b.stars)}</span></button>`}).join("");
  const open=doneCount()>=4,bb=bestOf("boss");
@@ -259,7 +269,7 @@ function home(){const lv=level();const t=total();
  <div class="status"><div><span class="eyebrow">Ton grade</span><div class="grade">${LEVELS[lv]}</div></div><div class="bar-wrap" aria-hidden="true"><div class="bar-in" style="width:${Math.min(100,(doneCount()+(bb.stars?1:0))/8*100)}%"></div></div></div></section>
  ${trackCard()}<h2 class="sec">Les missions</h2><div class="mlist">${cards}</div>
  <button class="mcard boss ${open?"":"locked"}" ${open?`data-act="intro" data-id="boss"`:"disabled"}><span class="mnum mono">★</span><span class="mtxt"><b>${BOSS.title}</b><small>${open?BOSS.short:"Se débloque après 4 missions avec au moins 1 étoile ("+doneCount()+"/4)"}</small></span><span class="mst ${bb.stars?"on":""}">${starStr(bb.stars)}</span></button>
- <p class="foot-note">Les nombres changent à chaque partie : tu peux rejouer une mission autant de fois que tu veux pour t'entraîner. Ta progression est gardée sur cet appareil. ${t.s?`<button class="link" data-act="reset">${S.confirmReset?"Cliquer à nouveau pour tout effacer":"Effacer ma progression"}</button>`:""}</p>`}
+ <p class="foot-note">Les nombres changent à chaque partie : tu peux rejouer une mission autant de fois que tu veux pour t'entraîner. Ta progression est gardée sur cet appareil. ${ENDPOINT?`<button class="link" data-act="teacher">Espace enseignant</button> · `:""}${t.s?`<button class="link" data-act="reset">${S.confirmReset?"Cliquer à nouveau pour tout effacer":"Effacer ma progression"}</button>`:""}</p>`}
 function intro(){const m=modOf(S.mid);return`<button class="link back" data-act="home">← Retour aux missions</button><section class="ticket"><div class="perf mono">MISSION ${m.n}</div><h1>${m.title}</h1><h2 class="sec2">Le cours en 30 secondes</h2><div class="course">${m.intro}</div><div class="actions"><button class="btn" data-act="start" data-id="${m.id}">Commencer la mission</button></div></section>`}
 function quiz(){const q=S.qs[S.qi],m=modOf(S.mid);
  let steps="";
@@ -305,6 +315,9 @@ $app.addEventListener("click",e=>{const t=e.target.closest("[data-act]");if(!t)r
  else if(a==="reset"){if(S.confirmReset){prog={best:{}};save();S.confirmReset=false}else S.confirmReset=true;render()}
  else if(a==="teacher")openTeacher();
  else if(a==="csv")exportCsv();
+ else if(a==="reload")loadTeacher();
+ else if(a==="lock"){TCODE="";try{sessionStorage.removeItem("stats-au-comptoir-tcode")}catch(x){}S.rows=null;S.terr="";render()}
+ else if(a==="grp"){}
  else if(a==="nosync"){NOSYNC=true;try{localStorage.setItem(NKEY+"-off","1")}catch(e){}render()}
  else if(a==="enable"){NOSYNC=false;try{localStorage.removeItem(NKEY+"-off")}catch(e){}render()}
  else if(a==="rename"){NAME="";render()}
@@ -312,7 +325,8 @@ $app.addEventListener("click",e=>{const t=e.target.closest("[data-act]");if(!t)r
  else if(a==="reveal"){const st=q.steps[S.si];award(0,shownOf(st));render()}
  else if(a==="pick"){const st=q.steps[S.si],i=+t.dataset.i;if(i===st.ans){award(pointsFor(),shownOf(st))}else{S.att++;S.wrong.push(i);S.msg=`<span class="bad">Pas tout à fait.</span> ${S.att>=2?"Tu peux voir la réponse ou réessayer.":"Relis la question ou affiche l'indice, puis réessaie."}`}render()}
  else if(a==="next"){if(S.qi+1<S.qs.length){S.qi++;resetQ();window.scrollTo(0,0);render()}else finish()}});
-$app.addEventListener("submit",e=>{const nf=e.target.closest("[data-form=name]");if(nf){e.preventDefault();const v=document.getElementById("nm").value.trim().slice(0,40);if(!v)return;NAME=v;NOSYNC=false;try{localStorage.setItem(NKEY,v);localStorage.removeItem(NKEY+"-off")}catch(x){}push();render();return}
+$app.addEventListener("submit",e=>{const nf=e.target.closest("[data-form=name]");if(nf){e.preventDefault();const v=document.getElementById("nm").value.trim().slice(0,40),g=(document.getElementById("grp").value||"").trim().slice(0,20);if(!v)return;NAME=v;GRP=g;NOSYNC=false;try{localStorage.setItem(NKEY,v);localStorage.setItem(NKEY+"-grp",g);localStorage.removeItem(NKEY+"-off")}catch(x){}push();render();return}
+ const tf=e.target.closest("[data-form=tcode]");if(tf){e.preventDefault();TCODE=document.getElementById("tc").value.trim();try{sessionStorage.setItem("stats-au-comptoir-tcode",TCODE)}catch(x){}loadTeacher();return}
  const fm=e.target.closest("[data-form=num]");if(!fm)return;e.preventDefault();
  const st=S.qs[S.qi].steps[S.si],raw=document.getElementById("ans").value,v=parse(raw);
  if(isNaN(v)){S.msg=`<span class="bad">Écris un nombre, par exemple 12,5.</span>`;render();return}
@@ -323,34 +337,48 @@ $app.addEventListener("submit",e=>{const nf=e.target.closest("[data-form=name]")
 
 // ===== Suivi enseignant =====
 const weakArr=()=>Object.entries(prog.weak||{}).map(([t,v])=>({t,e:v[0],m:v[1]}));
-function push(){if(!DB||!UID||!NAME||NOSYNC)return;const t=total(),stars=MISSIONS.concat([BOSS]).reduce((a,m)=>a+bestOf(m.id).stars,0);
- return DB.doc("scores/"+UID).set({name:NAME,updated:Date.now(),points:t.s,stars,best:prog.best,plays:prog.plays||{},weak:weakArr()}).then(()=>{S.sync="ok";if(S.view==="home")render()}).catch(()=>{S.sync="err";if(S.view==="home")render()})}
-function openTeacher(){S.rows=null;go("teacher");if(!DB)return;unsub=DB.collection("scores").onSnapshot(sn=>{S.rows=sn.docs.map(d=>Object.assign({id:d.id},d.data()));if(S.view==="teacher")render()},()=>{S.rows=[];if(S.view==="teacher")render()})}
+function push(){if(!ENDPOINT||!NAME||NOSYNC)return;const t=total(),stars=MISSIONS.concat([BOSS]).reduce((a,m)=>a+bestOf(m.id).stars,0);
+ const payload={code:CLASS_CODE,id:UID,name:NAME,group:GRP,points:t.s,stars,best:prog.best,plays:prog.plays||{},weak:weakArr()};
+ return fetch(ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)}).then(()=>{S.sync="ok";if(S.view==="home")render()}).catch(()=>{S.sync="err";if(S.view==="home")render()})}
+let TCODE="";try{TCODE=sessionStorage.getItem("stats-au-comptoir-tcode")||""}catch(e){}
+S.gf="";S.terr="";S.wk=[];
+function openTeacher(){S.rows=null;S.terr="";S.gf="";go("teacher");if(TCODE)loadTeacher()}
+async function loadTeacher(){S.rows=null;S.terr="";render();
+ try{const r=await fetch(ENDPOINT+"?action=stats&code="+encodeURIComponent(TCODE));const d=await r.json();
+  if(d.error){S.terr=d.error==="code"?"Code enseignant incorrect.":"Le service a répondu par une erreur.";S.rows=[];TCODE="";try{sessionStorage.removeItem("stats-au-comptoir-tcode")}catch(x){}}
+  else S.rows=d.rows||[]}
+ catch(e){S.terr="Impossible de lire les résultats. Vérifie l'adresse du script, ou ouvre directement la feuille Google Sheets.";S.rows=[]}
+ if(S.view==="teacher")render()}
 const IDS=()=>MISSIONS.map(m=>m.id).concat("boss");
 const when=t=>{if(!t)return"–";const d=new Date(t);return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
-function teacher(){const R=S.rows;let body;
- if(R===null)body=`<p>Chargement…</p>`;
- else if(!R.length)body=`<p class="note">Aucun score pour l'instant. Les résultats apparaissent ici dès qu'un étudiant termine une mission avec son nom renseigné.</p>`;
- else{const rows=[...R].sort((a,b)=>(b.points||0)-(a.points||0)),n=rows.length,avg=Math.round(rows.reduce((a,r)=>a+(r.points||0),0)/n);
-  const cov=IDS().map((id,i)=>{const c=rows.filter(r=>((r.best||{})[id]||{}).stars>=1).length;return`<div class="kpi"><span class="mono">${c}/${n}</span><small>${id==="boss"?"Boss":"M"+(i+1)}</small></div>`}).join("");
+function teacher(){
+ const back=`<button class="link back" data-act="home">← Retour aux missions</button>`;
+ if(!TCODE)return back+`<section class="ticket"><div class="perf mono">ESPACE ENSEIGNANT</div><h1>Suivi de la classe</h1>${S.terr?`<p class="bad">${S.terr}</p>`:""}<form class="nameform" data-form="tcode" autocomplete="off"><label class="fl" for="tc">Code enseignant</label><div class="ansrow"><input id="tc" type="password" class="inp" autocomplete="off" aria-label="Code enseignant"/><button class="btn" type="submit">Ouvrir</button></div></form></section>`;
+ const R0=S.rows;let body;
+ if(R0===null)body=`<p>Chargement…</p>`;
+ else if(!R0.length)body=`${S.terr?`<p class="bad">${S.terr}</p>`:`<p class="note">Aucun score pour l'instant. Les résultats apparaissent ici dès qu'un étudiant termine une mission avec son nom renseigné.</p>`}`;
+ else{const groups=[...new Set(R0.map(r=>r.group||"").filter(Boolean))].sort();
+  const R=S.gf?R0.filter(r=>(r.group||"")===S.gf):R0;
+  const rows=[...R].sort((a,b)=>(b.points||0)-(a.points||0)),n=rows.length||1,avg=Math.round(rows.reduce((a,r)=>a+(r.points||0),0)/n);
+  const cov=IDS().map((id,i)=>{const c=rows.filter(r=>((r.best||{})[id]||{}).stars>=1).length;return`<div class="kpi"><span class="mono">${c}/${rows.length}</span><small>${id==="boss"?"Boss":"M"+(i+1)}</small></div>`}).join("");
   const agg={};R.forEach(r=>(r.weak||[]).forEach(w=>{const a=agg[w.t]||(agg[w.t]=[0,0]);a[0]+=w.e;a[1]+=w.m}));
   const weak=Object.entries(agg).filter(([,v])=>v[1]>=20).map(([t,v])=>[t,Math.round(v[0]/v[1]*100)]).sort((a,b)=>a[1]-b[1]).slice(0,6);
-  const tbl=table(["Étudiant",...MISSIONS.map(m=>"M"+m.n),"Boss","Points","Activité"],rows.map(r=>[`<b>${esc(r.name||"?")}</b>`,...IDS().map(id=>{const b=(r.best||{})[id];return b?`<span class="tst" title="${b.score}/${b.max} pts">${starStr(b.stars||0)}</span>`:"–"}),`<span class="mono">${r.points||0}</span>`,`<small>${when(r.updated)}</small>`]));
-  body=`<div class="kpis"><div class="kpi"><span class="mono">${n}</span><small>étudiants</small></div><div class="kpi"><span class="mono">${avg}</span><small>points en moyenne</small></div></div><h2 class="sec">Missions réussies (au moins 1 étoile)</h2><div class="kpis">${cov}</div>
-  <h2 class="sec">Notions les plus difficiles pour la classe</h2>${weak.length?weak.map(([t,p])=>`<div class="wk"><span>${esc(t)}</span><span class="wbar"><i style="width:${p}%"></i></span><span class="mono">${p} %</span></div>`).join("")+`<p class="note">Part des points obtenus sur chaque notion, tous étudiants confondus (notions avec assez de réponses).</p>`:`<p class="note">Pas encore assez de réponses.</p>`}
-  <h2 class="sec">Résultats par étudiant</h2>${tbl}<div class="actions"><button class="btn ghost" data-act="csv">Exporter en CSV</button></div>`}
- return`<button class="link back" data-act="home">← Retour aux missions</button><section class="ticket"><div class="perf mono">ESPACE ENSEIGNANT</div><h1>Suivi de la classe</h1>${body}</section>`}
-async function exportCsv(){const R=S.rows||[];if(!R.length||!DL)return;const ids=IDS();
+  const tbl=table(["Étudiant","Groupe",...MISSIONS.map(m=>"M"+m.n),"Boss","Points","Activité"],rows.map(r=>[`<b>${esc(r.name||"?")}</b>`,esc(r.group||"–"),...IDS().map(id=>{const b=(r.best||{})[id];return b?`<span class="tst" title="${b.score}/${b.max} pts">${starStr(b.stars||0)}</span>`:"–"}),`<span class="mono">${r.points||0}</span>`,`<small>${when(r.updated)}</small>`]));
+  body=`${groups.length?`<div class="ansrow"><label class="fl" for="gf">Groupe</label><select id="gf" class="inp" data-act="grp"><option value="">Tous</option>${groups.map(g=>`<option ${g===S.gf?"selected":""}>${esc(g)}</option>`).join("")}</select></div>`:""}
+  <div class="kpis"><div class="kpi"><span class="mono">${rows.length}</span><small>étudiants</small></div><div class="kpi"><span class="mono">${avg}</span><small>points en moyenne</small></div></div><h2 class="sec">Missions réussies (au moins 1 étoile)</h2><div class="kpis">${cov}</div>
+  <h2 class="sec">Notions les plus difficiles</h2>${weak.length?weak.map(([t,p])=>`<div class="wk"><span>${esc(t)}</span><span class="wbar"><i style="width:${p}%"></i></span><span class="mono">${p} %</span></div>`).join("")+`<p class="note">Part des points obtenus sur chaque notion (notions avec assez de réponses).</p>`:`<p class="note">Pas encore assez de réponses.</p>`}
+  <h2 class="sec">Résultats par étudiant</h2>${tbl}`}
+ const tools=`<div class="actions">${R0&&R0.length?`<button class="btn ghost" data-act="csv">Exporter en CSV</button>`:""}<button class="btn ghost" data-act="reload">Actualiser</button><button class="btn ghost" data-act="lock">Verrouiller</button></div>`;
+ return back+`<section class="ticket"><div class="perf mono">ESPACE ENSEIGNANT</div><h1>Suivi de la classe</h1>${body}${tools}</section>`}
+$app.addEventListener("change",e=>{if(e.target.id==="gf"){S.gf=e.target.value;render()}});
+function exportCsv(){const R=(S.gf?(S.rows||[]).filter(r=>(r.group||"")===S.gf):S.rows)||[];if(!R.length)return;const ids=IDS();
  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
- const lines=[["Nom",...MISSIONS.map(m=>"M"+m.n+" (pts)"),"Boss (pts)","Points","Etoiles","Derniere activite"].map(q).join(";")];
- [...R].sort((a,b)=>(b.points||0)-(a.points||0)).forEach(r=>lines.push([q(r.name||""),...ids.map(id=>((r.best||{})[id]||{}).score??""),r.points||0,r.stars||0,q(when(r.updated))].join(";")));
- try{await DL.save({filename:"scores-stats-au-comptoir.csv",data:"﻿"+lines.join("\r\n")})}catch(e){}}
-(async()=>{try{if(!window.claude||!window.claude.use)return;const [db,user,dl]=await Promise.all([claude.use("db"),claude.use("user"),claude.use("downloads")]);DL=dl;
- if(db&&user){const id=await user.id();if(id){DB=db;UID=id;TEACHER=!!(await user.canEdit())||!!(await user.isOwner())}}}catch(e){}
- if(S.view==="home"||S.view==="intro")render();if(DB&&NAME&&!NOSYNC)push()})();
+ const lines=[["Nom","Groupe",...MISSIONS.map(m=>"M"+m.n+" (pts)"),"Boss (pts)","Points","Etoiles","Derniere activite"].map(q).join(";")];
+ [...R].sort((a,b)=>(b.points||0)-(a.points||0)).forEach(r=>lines.push([q(r.name||""),q(r.group||""),...ids.map(id=>((r.best||{})[id]||{}).score??""),r.points||0,r.stars||0,q(when(r.updated))].join(";")));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download="scores-stats-au-comptoir.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 render();
+if(DB&&NAME&&!NOSYNC)push();
 
 </script>
-
 </body>
 </html>
