@@ -29,7 +29,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .link{background:none;border:0;color:var(--accent);text-decoration:underline;text-underline-offset:3px;padding:6px 0;font-weight:600;font-size:15px}
 .back{margin-bottom:10px;display:inline-block}
 .eyebrow{font:700 12px var(--fb);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
-h1{font:00 clamp(28px,6vw,40px)/1.1 var(--fd);letter-spacing:-.02em;margin:0 0 12px;text-wrap:balance}
+h1{font:800 clamp(28px,6vw,40px)/1.1 var(--fd);letter-spacing:-.02em;margin:0 0 12px;text-wrap:balance}
 .hero{padding:10px 0 8px}.lead{font-size:17px;color:var(--ink);max-width:62ch;margin:0 0 18px}
 .status{display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
 .grade{font:700 22px var(--fd)}.bar-wrap{flex:1;min-width:140px;height:10px;background:var(--soft);border-radius:99px;overflow:hidden}.bar-in{height:100%;background:var(--accent);border-radius:99px}
